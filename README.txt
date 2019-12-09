@@ -7,3 +7,5 @@ Usage: ./mktik_api_cmd [OPTIONS] command [command options ...]
 
 Example:
 	./mktik_api_cmd -i 10.100.26.160 '/interface/print' '=.proplist=name,type,disabled' '?type=ether'
+
+

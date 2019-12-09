@@ -86,7 +86,7 @@ func main() {
   ctrl_ch= make(chan string, 1)
 
   dev := mikrotik.Init(dev_ip, strconv.FormatInt(int64(dev_port), 10), DEV_TIMEOUT*time.Second, ctrl_ch)
-  //dev.Debug=true
+  dev.Debug=opt_d
   defer dev.Close()
 
   var snt *mikrotik.MkSentence
@@ -98,30 +98,46 @@ func main() {
     os.Exit(1)
   }
 
+  dev.ReturnTrap=true
 
-  err = dev.Send(commands...)
-  if(err != nil) {
-    err_str = "ERROR: comm error: "+err.Error()
-    fmt.Printf("%s\n", err_str)
-    os.Exit(1)
+  for(len(commands) > 0) {
+
+    var send_commands []string
+    for(len(commands) > 0 && commands[0] != "") {
+      var cmd string
+      cmd, commands = commands[0], commands[1:]
+      send_commands=append(send_commands, cmd)
+    }
+    if(len(send_commands) > 0) {
+
+      err = dev.Send(send_commands...)
+      if(err != nil) {
+        err_str = "ERROR: comm error: "+err.Error()
+        fmt.Printf("%s\n", err_str)
+        os.Exit(1)
+      }
+      snt,err = dev.ReadSentence()
+      for err == nil && (snt.Answer == "!re" || snt.Answer == "!trap") {
+        snt.Dump()
+
+        snt,err = dev.ReadSentence()
+      }
+
+      if(err != nil) {
+        err_str = "ERROR: comm error: "+err.Error()
+        fmt.Printf("%s\n", err_str)
+        os.Exit(1)
+      }
+
+      if(snt.Answer != "!done") {
+        err_str = "ERROR: no !done in last reply"
+        fmt.Printf("%s\n", err_str)
+        os.Exit(1)
+      }
+    }
+
+    if(len(commands) > 0) {
+      commands=commands[1:]
+    }
   }
-  snt,err = dev.ReadSentence()
-  for err == nil && snt.Answer == "!re" {
-    snt.Dump()
-
-    snt,err = dev.ReadSentence()
-  }
-
-  if(err != nil) {
-    err_str = "ERROR: comm error: "+err.Error()
-    fmt.Printf("%s\n", err_str)
-    os.Exit(1)
-  }
-
-  if(snt.Answer != "!done") {
-    err_str = "ERROR: no !done in last reply"
-    fmt.Printf("%s\n", err_str)
-    os.Exit(1)
-  }
-
 }
